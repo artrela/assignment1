@@ -23,7 +23,7 @@ def retexture_mesh(cow_path="data/cow.obj"):
 
     renderer = get_mesh_renderer(device=device)
     
-    color1, color2 = [1,0,0] [0,1,0]
+    color1, color2 = torch.tensor([[1,0,0]]).T, torch.tensor([[0,1,0]]).T
 
        # Get the vertices, faces, and textures.
     vertices, faces = load_cow_mesh(cow_path)
@@ -42,25 +42,24 @@ def retexture_mesh(cow_path="data/cow.obj"):
 
     num_frames = 360 + 45
     duration = num_frames / 60
-    elevations = torch.arange(0, 45)
-    azimuths = torch.arange(0, 360)
+    elevations = torch.arange(45)
+    azimuths = torch.arange(360)
 
     renders = []
-    for elev in tqdm(elevations):
+    for elev in tqdm.tqdm(elevations):
         
-        R, T = pytorch3d.renderer.cameras.look_at_view_transform(elev=elev, azim=0, degrees=True)
+        R, T = pytorch3d.renderer.cameras.look_at_view_transform(dist=3.0, elev=elev, azim=0, degrees=True)
 
-        cameras = pytorch3d.renderer.FoVPerspectiveCameras(fov=60, R=R T=T, device=device)
+        cameras = pytorch3d.renderer.FoVPerspectiveCameras(fov=60, R=R, T=T, device=device)
         rend = renderer(mesh, cameras=cameras, lights=lights)
         rend = rend[0, ..., :3].cpu().numpy()  # (N, H, W, 3)
         renders.append(rend)
     
-    renders = []
-    for azim in tqdm(azimuths):
+    for azim in tqdm.tqdm(azimuths):
         
-        R, T = pytorch3d.renderer.cameras.look_at_view_transform(elev=elevations[-1], azim=azim, degrees=True)
+        R, T = pytorch3d.renderer.cameras.look_at_view_transform(dist=3.0, elev=elevations[-1], azim=azim, degrees=True)
 
-        cameras = pytorch3d.renderer.FoVPerspectiveCameras(fov=60, R=R T=T, device=device)
+        cameras = pytorch3d.renderer.FoVPerspectiveCameras(fov=60, R=R, T=T, device=device)
         rend = renderer(mesh, cameras=cameras, lights=lights)
         rend = rend[0, ..., :3].cpu().numpy()  # (N, H, W, 3)
         renders.append(rend)
@@ -72,10 +71,10 @@ def retexture_mesh(cow_path="data/cow.obj"):
         image = Image.fromarray((r * 255).astype(np.uint8))
         draw = ImageDraw.Draw(image)
 
-        elev_idx = min(45, i)
+        elev_idx = min(44, i)
         azim_idx = i - 45 if i > 45 else 0
         
-        draw.text((20, 20), f"azimuth: {azimuths[azim_idx]:.2f}, elevation: {elevations[elev_idx]}", fill=(255, 0, 0))
+        draw.text((20, 20), f"azimuth: {azimuths[azim_idx]+1}, elevation: {elevations[elev_idx]+1}", fill=(255, 0, 0))
         images.append(np.array(image))
 
     imageio.mimsave("results/change_color.gif", images, fps=(num_frames / duration))
@@ -93,7 +92,7 @@ def get_colors(color1, color2, points):
     alpha = (z - z_min) / (z_max - z_min)
     color = alpha * color2 + (1 - alpha) * color1
 
-    return color.unsqueeze(0)
+    return color.T.unsqueeze(0)
     
 
 
